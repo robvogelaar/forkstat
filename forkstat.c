@@ -264,6 +264,16 @@ static const int signals[] = {
 	-1,
 };
 
+int _gettimeofday(struct timeval *tv, struct timezone *tz __attribute__((unused)))
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	tv->tv_sec = ts.tv_sec;
+	tv->tv_usec = ts.tv_nsec / 1000;
+	return 0;
+}
+
 static proc_info_t *proc_info_get(pid_t pid);
 
 /* seconds scale suffixes, secs, mins, hours, etc */
@@ -340,7 +350,7 @@ static const char *get_proc_self_stat_field(const char *buf, const int num)
  *  secs_to_str()
  *	report seconds in different units.
  */
-static char *secs_to_str(const double secs)
+static char __attribute__((unused)) *secs_to_str(const double secs)
 {
 	static char buf[16];
 	size_t i;
@@ -864,7 +874,7 @@ static int tty_height(void)
  *  print_heading()
  *	print heading to output
  */
-static void print_heading(void)
+static void __attribute__((unused)) print_heading(void)
 {
 	int pid_size;
 
@@ -879,12 +889,14 @@ static void print_heading(void)
 		(opt_flags & OPT_GLYPH) ? " " : "");
 }
 
+#define print_heading()
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
 /*
  *  row_increment()
  *	bump row increment and re-print heading if required
  */
-static void row_increment(void)
+static void __attribute__((unused)) row_increment(void)
 {
 	const int tty_rows = tty_height();
 
@@ -894,6 +906,9 @@ static void row_increment(void)
 		row = 2;
 	}
 }
+
+#define row_increment()
+
 #endif
 
 /*
@@ -965,7 +980,7 @@ static void proc_info_get_timeval(const pid_t pid, struct timeval * const tv)
 	if (secs < 0.0)
 		return;
 
-	if (gettimeofday(&now, NULL) < 0)
+	if (_gettimeofday(&now, NULL) < 0)
 		return;
 
 	secs = timeval_to_double(&now) - secs;
@@ -1567,9 +1582,9 @@ static int monitor(const int sock)
 
 			struct cn_msg *cn_msg;
 			struct proc_event *proc_ev;
-			struct tm tm;
+			struct tm __attribute__((unused)) tm;
 			char when[10];
-			time_t now;
+			time_t __attribute__((unused)) now;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
 			pid_t pid, ppid, pgrp;
 			bool is_thread;
@@ -1577,7 +1592,7 @@ static int monitor(const int sock)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
 			struct timeval tv;
-			char duration[32];
+			char __attribute__((unused)) duration[32];
 			proc_info_t const *info1, *info2;
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0)
@@ -1598,6 +1613,7 @@ static int monitor(const int sock)
 
 			proc_ev = (struct proc_event *)cn_msg->data;
 
+			#if 0
 			now = time(NULL);
 			if (now == ((time_t) -1)) {
 				(void)snprintf(when, sizeof(when), "--:--:--");
@@ -1606,6 +1622,11 @@ static int monitor(const int sock)
 				(void)snprintf(when, sizeof(when), "%2.2d:%2.2d:%2.2d",
 					tm.tm_hour, tm.tm_min, tm.tm_sec);
 			}
+			#endif
+
+			struct timespec monotime;
+			clock_gettime(CLOCK_MONOTONIC, &monotime);
+			snprintf(when, sizeof(when), "%ld.%ld", monotime.tv_sec, monotime.tv_nsec);
 
 			switch (proc_ev->what) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
@@ -1617,7 +1638,7 @@ static int monitor(const int sock)
 					break;
 				proc_stats_account(proc_ev->event_data.fork.parent_pid,
 					is_thread ? STAT_CLNE : STAT_FORK);
-				if (gettimeofday(&tv, NULL) < 0)
+				if (_gettimeofday(&tv, NULL) < 0)
 					(void)memset(&tv, 0, sizeof tv);
 				info1 = proc_info_get(ppid);
 				info2 = proc_info_add(pid, &tv);
@@ -1681,6 +1702,7 @@ static int monitor(const int sock)
 					if ((opt_pgrp >= 0) && (opt_pgrp != pgrp))
 						break;
 					info1 = proc_info_get(pid);
+					#if 0
 					if (info1->start.tv_sec) {
 						double d1, d2;
 
@@ -1693,7 +1715,9 @@ static int monitor(const int sock)
 					} else {
 						(void)snprintf(duration, sizeof(duration), "unknown");
 					}
+					#endif
 					row_increment();
+					#if 0
 					(void)printf("%s exit  %*d %s%s%6d %8s %s%s%s\n",
 						when,
 						pid_size, pid,
@@ -1704,6 +1728,8 @@ static int monitor(const int sock)
 						info1->kernel_thread ? "[" : "",
 						info1->cmdline,
 						info1->kernel_thread ? "]" : "");
+					#endif
+					(void)printf("%s exit  %*d\n", when, pid_size, pid);
 				}
 				proc_info_free(proc_ev->event_data.exit.process_pid);
 				break;
