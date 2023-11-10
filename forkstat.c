@@ -1583,7 +1583,7 @@ static int monitor(const int sock)
 			struct cn_msg *cn_msg;
 			struct proc_event *proc_ev;
 			struct tm __attribute__((unused)) tm;
-			char when[10];
+			char when[32];
 			time_t __attribute__((unused)) now;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
 			pid_t pid, ppid, pgrp;
@@ -1626,7 +1626,7 @@ static int monitor(const int sock)
 
 			struct timespec monotime;
 			clock_gettime(CLOCK_MONOTONIC, &monotime);
-			snprintf(when, sizeof(when), "%ld.%ld", monotime.tv_sec, monotime.tv_nsec);
+			snprintf(when, sizeof(when), "%ld.%09ld", monotime.tv_sec, monotime.tv_nsec);
 
 			switch (proc_ev->what) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
